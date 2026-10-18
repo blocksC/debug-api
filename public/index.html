@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>debug-api</title>
+</head>
+<body>
+  <h1>Users</h1>
+
+  <h2>Sign up</h2>
+  <form id="signup-form">
+    <label>
+      Username
+      <input type="text" id="signup-username" required minlength="3">
+    </label>
+    <label>
+      Email
+      <input type="email" id="signup-email" required>
+    </label>
+    <button type="submit">Sign up</button>
+  </form>
+  <p id="signup-message"></p>
+
+  <h2>All users</h2>
+  <table border="1">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Username</th>
+        <th>Email</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="users-body">
+      <tr><td colspan="4">loading...</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Edit user</h2>
+  <form id="edit-form">
+    <label>
+      ID
+      <input type="number" id="edit-id" required>
+    </label>
+    <label>
+      Username
+      <input type="text" id="edit-username" minlength="3">
+    </label>
+    <label>
+      Email
+      <input type="email" id="edit-email">
+    </label>
+    <button type="submit">Update</button>
+  </form>
+  <p id="edit-message"></p>
+
+  <h2>Delete user</h2>
+  <form id="delete-form">
+    <label>
+      ID
+      <input type="number" id="delete-id" required>
+    </label>
+    <button type="submit">Delete</button>
+  </form>
+  <p id="delete-message"></p>
+
+  <script>
+    const usersBody = document.getElementById('users-body');
+
+    async function loadUsers() {
+      const res = await fetch('/api/users');
+      const users = await res.json();
+
+      if (!Array.isArray(users) || users.length === 0) {
+        usersBody.innerHTML = '<tr><td colspan="4">no users yet</td></tr>';
+        return;
+      }
+
+      usersBody.innerHTML = '';
+      for (const user of users) {
+        const tr = document.createElement('tr');
+
+        const tdId = document.createElement('td');
+        tdId.textContent = user.id;
+
+        const tdUsername = document.createElement('td');
+        tdUsername.textContent = user.username;
+
+        const tdEmail = document.createElement('td');
+        tdEmail.textContent = user.email;
+
+        const tdActions = document.createElement('td');
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.textContent = 'delete';
+        deleteBtn.addEventListener('click', () => deleteUser(user.id));
+        tdActions.appendChild(deleteBtn);
+
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.textContent = 'edit';
+        editBtn.addEventListener('click', () => {
+          document.getElementById('edit-id').value = user.id;
+          document.getElementById('edit-username').value = user.username;
+          document.getElementById('edit-email').value = user.email;
+        });
+        tdActions.appendChild(editBtn);
+
+        tr.append(tdId, tdUsername, tdEmail, tdActions);
+        usersBody.appendChild(tr);
+      }
+    }
+
+    async function deleteUser(id) {
+      const res = await fetch('/api/users/' + id, { method: 'DELETE' });
+      if (res.ok) {
+        loadUsers();
+      } else {
+        const body = await res.json();
+        alert('delete failed: ' + (body.message || body.error || res.status));
+      }
+    }
+
+    document.getElementById('signup-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = document.getElementById('signup-message');
+      message.textContent = '';
+
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: document.getElementById('signup-username').value,
+          email: document.getElementById('signup-email').value
+        })
+      });
+
+      const body = await res.json();
+      if (res.ok) {
+        message.textContent = 'created user ' + body.username + ' (id ' + body.id + ')';
+        e.target.reset();
+        loadUsers();
+      } else {
+        message.textContent = 'error: ' + (body.message || body.error || res.status);
+      }
+    });
+
+    document.getElementById('edit-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = document.getElementById('edit-message');
+      message.textContent = '';
+
+      const payload = {};
+      const username = document.getElementById('edit-username').value;
+      const email = document.getElementById('edit-email').value;
+      if (username) payload.username = username;
+      if (email) payload.email = email;
+
+      const id = document.getElementById('edit-id').value;
+      const res = await fetch('/api/users/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const body = await res.json();
+      if (res.ok) {
+        message.textContent = 'updated user ' + body.id;
+        e.target.reset();
+        loadUsers();
+      } else {
+        message.textContent = 'error: ' + (body.message || body.error || res.status);
+      }
+    });
+
+    document.getElementById('delete-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = document.getElementById('delete-message');
+      message.textContent = '';
+
+      const id = document.getElementById('delete-id').value;
+      const res = await fetch('/api/users/' + id, { method: 'DELETE' });
+
+      const body = await res.json();
+      if (res.ok) {
+        message.textContent = 'deleted user ' + id;
+        e.target.reset();
+        loadUsers();
+      } else {
+        message.textContent = 'error: ' + (body.message || body.error || res.status);
+      }
+    });
+
+    loadUsers();
+  </script>
+</body>
+</html>

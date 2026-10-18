@@ -5,6 +5,7 @@ const { validateUserMiddleware } = require('./validators');
 
 const app = express();
 app.use(express.json());
+app.use(express.static('public'));
 
 
 app.post('/api/users', validateUserMiddleware, async (req, res) => {
